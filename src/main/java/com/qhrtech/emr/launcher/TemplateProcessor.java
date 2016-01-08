@@ -15,14 +15,16 @@
  */
 package com.qhrtech.emr.launcher;
 
+import com.qhrtech.emr.launcher.docker.DockerState;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,9 +33,14 @@ import java.util.Map;
  *
  * @author Blake Dickie
  */
-public class TemplateProcessor {
+public class TemplateProcessor implements Generator {
 
-    public TemplateProcessor() {
+    private final File source;
+    private final File destination;
+
+    public TemplateProcessor( File source, File destination ) {
+        this.source = source;
+        this.destination = destination;
     }
 
     public Map<String, Object> buildDataModel() {
@@ -42,7 +49,8 @@ public class TemplateProcessor {
         return result;
     }
 
-    public void generateConfigs( File source, File destination ) throws IOException, TemplateException {
+    @Override
+    public Map<File, byte[]> generate( DockerState state ) throws Exception {
         Configuration cfg = new Configuration( Configuration.VERSION_2_3_22 );
         cfg.setDefaultEncoding( "UTF-8" );
         cfg.setTemplateExceptionHandler( TemplateExceptionHandler.RETHROW_HANDLER );
@@ -58,22 +66,28 @@ public class TemplateProcessor {
             throw new IllegalArgumentException( "Unknown path: " + source.getPath() );
         }
 
-        generateConfigsImpl( source, destination, relativePath, cfg );
+        return generateConfigsImpl( source, destination, relativePath, cfg );
     }
 
-    private void generateConfigsImpl( File source, File destination, String relativePath, Configuration cfg ) throws IOException, TemplateException {
+    private Map<File, byte[]> generateConfigsImpl( File source, File destination, String relativePath, Configuration cfg ) throws IOException, TemplateException {
+
+        Map<File, byte[]> result = new HashMap<>();
 
         if ( source.isFile() ) {
             Template template = cfg.getTemplate( relativePath );
-            try ( Writer out = new BufferedWriter( new FileWriter( destination ) ) ) {
+            ByteArrayOutputStream bout = new ByteArrayOutputStream();
+            try ( Writer out = new BufferedWriter( new OutputStreamWriter( bout ) ) ) {
                 template.process( buildDataModel(), out );
             }
+            result.put( destination, bout.toByteArray() );
 
         } else {
             if ( !relativePath.isEmpty() ) {
                 relativePath += "/";
             }
         }
+
+        return result;
 
     }
 

@@ -17,6 +17,7 @@ package com.qhrtech.emr.launcher;
 
 import com.lexicalscope.jewel.cli.Option;
 import com.lexicalscope.jewel.cli.Unparsed;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -32,6 +33,42 @@ public interface CliOptions {
              pattern = "[^;]*;[^;]*",
              description = "Takes pairs of configuration template sources and outputs seperated by a semicolon (;)" )
     public List<String> getTemplate();
+
+    @Option( longName = "docker",
+             description = "Enable docker machine extensions for provided servers",
+             pattern = "[^\\:]+(?:\\:\\d+)?",
+             defaultToNull = true )
+    public List<String> getDockerHosts();
+
+    @Option( longName = "monitor",
+             description = "Continuing monitoring for changes to docker" )
+    public boolean isMonitor();
+
+    @Option( longName = "proxyFile",
+             description = "Generate a pre-configured Nginx proxy.",
+             defaultToNull = true )
+    public File getProxyFile();
+
+    @Option( longName = "proxyCerts",
+             description = "Folder containing HTTPS Certificate for use with proxyFile.",
+             defaultToNull = true )
+    public File getProxyCerts();
+
+    @Option( longName = "dockerCerts",
+             description = "Folder containing HTTPS Certificate to use when connecting to docker.",
+             defaultToNull = true )
+    public File getDockerCerts();
+
+    @Option( longName = "proxyConfs",
+             description = "Folder containing nginx include files for use with proxyFile.",
+             defaultToNull = true )
+    public File getProxyConfs();
+
+    @Option( longName = "notify",
+             shortName = "n",
+             defaultToNull = true,
+             description = "Command to exectute after the configuration is changed" )
+    public String getNotifyCommand();
 
     @Unparsed( name = "command", defaultToNull = true )
     public List<String> getCommand();

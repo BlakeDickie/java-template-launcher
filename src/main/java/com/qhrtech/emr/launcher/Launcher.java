@@ -15,6 +15,8 @@
  */
 package com.qhrtech.emr.launcher;
 
+import com.qhrtech.emr.launcher.docker.DockerInstance;
+import com.qhrtech.emr.launcher.docker.NginxProxyGenerator;
 import com.lexicalscope.jewel.cli.Cli;
 import com.lexicalscope.jewel.cli.CliFactory;
 import java.io.File;
@@ -26,27 +28,60 @@ import java.io.File;
 public class Launcher {
 
     public static void main( String[] args ) throws Exception {
+
         Cli<CliOptions> cli = CliFactory.createCli( CliOptions.class );
         CliOptions options = cli.parseArguments( args );
 
-        if ( options.getTemplate() == null && options.getCommand() == null ) {
-            System.err.println( cli.getHelpMessage() );
+        if ( options.getDockerHosts() == null && options.isMonitor() ) {
+            System.err.println( "-monitor can only be used when combined with -docker." );
             System.exit( 1 );
+        }
+        if ( options.getDockerHosts() == null && options.getProxyFile() != null ) {
+            System.err.println( "-proxyFile can only be used when combined with -docker." );
+            System.exit( 1 );
+        }
+
+        TemplateLauncherManager manager = TemplateLauncherManager.getInstance();
+
+        if ( options.getDockerHosts() != null ) {
+            for ( String hostArg : options.getDockerHosts() ) {
+                for ( String host : hostArg.split( "," ) ) {
+                    host = host.trim();
+                    if ( host.isEmpty() ) {
+                        continue;
+                    }
+                    if ( host.contains( ":" ) ) {
+                        String[] parts = host.split( "\\:", 2 );
+                        manager.addDockerInstance( new DockerInstance( parts[0], Integer.parseInt( parts[1] ), options.getDockerCerts() ) );
+                    } else {
+                        manager.addDockerInstance( new DockerInstance( host, options.getDockerCerts() ) );
+                    }
+                }
+            }
         }
 
         if ( options.getTemplate() != null ) {
             for ( String templatePair : options.getTemplate() ) {
                 String[] pair = templatePair.split( ";", 2 );
-                TemplateProcessor processor = new TemplateProcessor();
-                processor.generateConfigs( new File( pair[0] ), new File( pair[1] ) );
+                manager.addGenerator( new TemplateProcessor( new File( pair[0] ), new File( pair[1] ) ) );
+//                TemplateProcessor processor = new TemplateProcessor();
+//                processor.generateConfigs( new File( pair[0] ), new File( pair[1] ) );
             }
         }
 
-        if ( options.getCommand() != null ) {
-            ProcessBuilder pb = new ProcessBuilder( options.getCommand() );
-            Process process = pb.inheritIO().start();
-            System.exit( process.waitFor() );
+        if ( options.getProxyFile() != null ) {
+            NginxProxyGenerator gen = new NginxProxyGenerator( options.getProxyFile(), options.getProxyCerts(), options.getProxyConfs() );
+            manager.addGenerator( gen );
         }
+
+        manager.setLaunchCommand( options.getCommand() );
+        manager.setNotifyCommand( options.getNotifyCommand() );
+
+        if ( options.isMonitor() ) {
+            manager.startMonitoring();
+        }
+
+        manager.startUp();
 
     }
 }
