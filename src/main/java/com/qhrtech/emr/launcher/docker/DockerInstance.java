@@ -65,7 +65,8 @@ public class DockerInstance {
 
     public void startMonitoring() {
         EventsCmd eventsCmd = client.eventsCmd();
-        eventsCmd.exec( new EventMonitor() );
+        EventMonitor exec = eventsCmd.exec( new EventMonitor() );
+        TemplateLauncherManager.getInstance().reportDockerEvent();
     }
 
     public void appendToState( DockerState state ) {
@@ -126,6 +127,8 @@ public class DockerInstance {
         @Override
         public void onError( Throwable throwable ) {
             LoggerFactory.getLogger( getClass() ).warn( "Error monitoring for docker events.", throwable );
+
+            startMonitoring();
         }
 
         @Override
@@ -135,7 +138,6 @@ public class DockerInstance {
 
         @Override
         public void close() throws IOException {
-
         }
 
     }
